@@ -17,6 +17,7 @@ upper = [30, 30, 30]
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
+# Values of the previous coordinates of x and y
 xPrev = xRes/2
 yPrev = yRes/2
 
@@ -64,8 +65,8 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # Creates a rectangle around the contour area with the largest area that is sees and prints it
     #
     largestContour = max(contour2, key = cv2.contourArea)
-    xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
-    cv2.rectangle(bwResult, (xMax,yMax), (xMax+wMax,yMax+hMax), (0,255,0),3)
+    #xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
+    #cv2.rectangle(bwResult, (xMax,yMax), (xMax+wMax,yMax+hMax), (0,255,0),3)
     ####################################################################################################
 
     # a 'green' image of the current image
@@ -214,8 +215,8 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         cv2.line(image, (int(xMin), 200), (int(xMin), 250), (255,0,255), 3)
 
     # Display of the images
-    cv2.imshow("Original", np.hstack([image,bwResult]))
-    cv2.imshow("Black and White", blackSeen)
+    cv2.imshow("Original", image)
+    #cv2.imshow("Black and White", blackSeen)
     #cv2.imshow("Green", greenSeen)
     #cv2.imshow("Red", redSeen)
 
