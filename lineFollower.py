@@ -13,7 +13,7 @@ yRes = 480
 # Lower and upper RGB values in arrays for convenience
 # Brought to actual array forms using Numpy
 lower = [0,0,0]
-upper = [30, 30, 30]
+upper = [20, 20, 20]
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
@@ -65,7 +65,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # Creates a rectangle around the contour area with the largest area that is sees and prints it
     #
     largestContour = max(contour2, key = cv2.contourArea)
-    #xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
+    xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
     #cv2.rectangle(bwResult, (xMax,yMax), (xMax+wMax,yMax+hMax), (0,255,0),3)
     ####################################################################################################
 
@@ -124,7 +124,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
                 (xBox, yBox) = box[0]
                 # If the y-coordinate of the lowest point is below the maximum screen size (480 pixels with room for
                 # 2 pixels error), are NOT valid, which then it bumps the counter
-                if yBox > 478:
+                if yBox > yRes-2:
                     fromBottom+=1
                 # Appends all of this into a list of information of the contours
                 allCntrs.append((yBox,i,xMin,yMin))
@@ -176,15 +176,15 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         # of the line or object it is tracking
         box = cv2.boxPoints(smartBox)
         box = np.int0(box)
-        cv2.drawContours(image, [box], 0, (0, 0, 255), 3)
+        cv2.drawContours(image, [box], 0, (255, 0, 255), 3)
 
         # Prints the angle that it has with the center
-        cv2.putText(image, str(ang), (10,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2)
+        cv2.putText(image, str(ang), (10,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,0,255),2)
 
         # Calculation of the error
         # Also can be interpreted as distance of the line to the centre (or the colour it wishes to follow)
         error = int(xMin - centre)
-        message = "Distance from Centre :" + str(error)
+        message = "Distance from Centre (Recent) :" + str(error)
 
         # Error Check code - will use the same information to move the rover
         cv2.putText(image, message, (150, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
@@ -196,19 +196,32 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
         # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
         # represents the largest contour found
-        cv2.line(image, (lineCentre, int(yRes / 2) - 40), (lineCentre, int(yRes / 2) + 40), (255, 0, 0), 3)
-
-        #cv2.rectangle(image, (lineX, lineY), (lineX + lineW, lineY + lineH), (255, 0, 0), 3)
-
-        #cv2.rectangle(bwResult, (xMax, yMax), (int(xMax + wMax), int(yMax + hMax)), (255, 255, 0), 3)
-
-        #cv2.rectangle(image, (xMax, yMax), (int(xMax + wMax), int(yMax + hMax)), (255, 255, 0), 3)
+        cv2.line(image, (lineCentre, int(yRes / 2) - 40), (lineCentre, int(yRes / 2) + 40), (255, 255, 0), 3)
 
         # Create another 'box' made from contours that would move with the direction and
         # angle of the line or object it is tracking IF it is the largest one
-        bigBox = cv2.boxPoints(cv2.minAreaRect(largestContour))
+
+        largestBox = cv2.minAreaRect(largestContour)
+        (xBig, yBig), (wBig, hBig), angBig = largestBox
+
+        if angBig < -45:
+            angBig = 90 + angBig
+        if wBig < hBig and angBig > 0:
+            ang = (90-ang) * -1
+        if wBig > hBig and angBig < 0:
+            angBig = 90 + angBig
+        angBig = int(angBig)
+
+        cv2.putText(image, str(angBig), (10,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),2)
+
+        bigBox = cv2.boxPoints(largestBox)
         bigBox = np.int0(bigBox)
         cv2.drawContours(image,[bigBox], 0, (255,255,0),3)
+
+        errorMax = int(lineCentre - centre)
+        messageMax = "Distance from Centre (Biggest) :" + str(errorMax)
+
+        cv2.putText(image, messageMax, (150, 475), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,255), 2)
 
         # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
         # represents the most recent contour found
