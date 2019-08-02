@@ -17,6 +17,9 @@ upper = [30, 30, 30]
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
+xPrev = xRes/2
+yPrev = yRes/2
+
 # Initialization of the camera object to interact with it
 camera = PiCamera()
 camera.resolution = (xRes, yRes)
@@ -66,10 +69,10 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     ####################################################################################################
 
     # a 'green' image of the current image
-    greenSeen = cv2.inRange(image, (0,50,0), (50,250,50))
+    #greenSeen = cv2.inRange(image, (0,50,0), (50,250,50))
 
     # a 'red' image of the current image
-    redSeen = cv2.inRange(image, (0,0,50), (50,50,250))
+    #redSeen = cv2.inRange(image, (0,0,50), (50,50,250))
 
     # creates a 3x3 matrix
     kernel = np.ones((3,3), np.uint8)
@@ -77,55 +80,144 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # erodes 'cleans up' any noise and unreliable lines it sees
     # ideal number seems to be 3-7, will test later
     blackSeen= cv2.erode(blackSeen, kernel, iterations=5)
-    greenSeen = cv2.erode(greenSeen, kernel, iterations=5)
-    redSeen = cv2.erode(redSeen, kernel, iterations=5)
+    #greenSeen = cv2.erode(greenSeen, kernel, iterations=5)
+    #redSeen = cv2.erode(redSeen, kernel, iterations=5)
 
     # dilate 'ehances' the presently seen lines it sees
     # ideal number seems be 8-10, will test later
     blackSeen = cv2.dilate(blackSeen, kernel, iterations=9)
-    greenSeen = cv2.dilate(greenSeen,kernel, iterations=9)
-    redSeen = cv2.dilate(redSeen, kernel, iterations=9)
+    #greenSeen = cv2.dilate(greenSeen,kernel, iterations=9)
+    #redSeen = cv2.dilate(redSeen, kernel, iterations=9)
 
     # contour function
     # currently, this produces contours for anything seen that is very dark
     img, contour, hierarchy = cv2.findContours(blackSeen.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # draws out the contours that it finds
-    #cv2.drawContours(blackSeen, contour, -1, (0,255,0), 3)
+    cv2.drawContours(image, contour, -1, (0,255,255), 3)
 
+    # Create variable for length of the number of contours
+    contourLen = len(contour)
     # if there are any contours detected
-    if len(contour) > 0:
+    if contourLen > 0:
 
-        lineX,lineY,lineW,lineH = cv2.boundingRect(largestContour)
-        lineCentre = (int)(lineX + (lineW/2))
-        # camera is coloured in BGR
-        cv2.line(image,(lineCentre, int(yRes/2)-40 ), (lineCentre,int(yRes/2)+40 ), (255,0,0), 3)
-        cv2.rectangle(image, (lineX, lineY), (lineX+lineW, lineY+lineH), (255,0,0), 3)
+        # IF there are contours detected, then if only one is detected, simply use that for the smart box
+        if contourLen == 1:
+            smartBox = cv2.minAreaRect(contour[0])
+        # check all false positives and find the most 'recent' based on change in x and y coordinates
+        else:
+            # Create empty array to hold all the candidate contours that appear in this frame
+            allCntrs = []
+            # Counter to see how many contours goes below the screen
+            fromBottom = 0
 
-        blackbox = cv2.minAreaRect(largestContour)
-        (xMin, yMin), (wMin, hMin), ang = blackbox
+            # Loop through all of the contours
+            for i in range(contourLen):
 
+                # Generate a rectangle of each contour, with the specifics of the lengths and angle
+                smartBox = cv2.minAreaRect(contour[i])
+                (xMin, yMin), (wMin, hMin), ang = smartBox
+
+                # Store the coordinates of the rectangle
+                box = cv2.boxPoints(smartBox)
+                (xBox, yBox) = box[0]
+                # If the y-coordinate of the lowest point is below the maximum screen size (480 pixels with room for
+                # 2 pixels error), are NOT valid, which then it bumps the counter
+                if yBox > 478:
+                    fromBottom+=1
+                # Appends all of this into a list of information of the contours
+                allCntrs.append((yBox,i,xMin,yMin))
+            # Sorts the contours
+            allCntrs = sorted(allCntrs)
+
+            # If the number of false positives is
+            if fromBottom > 1:
+                # Create another array of contours from the bottom for distance
+                cntrsFromBot = []
+
+                # Loop through all of the contours that ARE valid (above the line lowest point of the screen)
+                for i in range ((contourLen - fromBottom), contourLen):
+                    # Set variables available from the initial contours variable
+                    (yHighest, indexMax, xMin, yMin) = allCntrs[i]
+                    # Calculate distance using the distance to a line formula
+                    totalDistance = (abs(xMin - xPrev) ** 2 + abs(yMin - yPrev) ** 2) ** 0.5
+                    # Append the index and also distance to the array
+                    cntrsFromBot.append((totalDistance, indexMax))
+                # Sort this array
+                cntrsFromBot = sorted(cntrsFromBot)
+                # Set variables for the indices and distances from the top of the array
+                (totalDistance, indexMax) = cntrsFromBot[0]
+                # The 'smart box' will now be created around the closest to last time's contour
+                smartBox = cv2.minAreaRect(contour[indexMax])
+            else:
+                # If there is no off-bottom contours to disregard, simply choose the contour
+                # at the bottom of the list (as we aim for lower yMax)
+                (yMax, indexMax, xMin, yMin) = allCntrs[contourLen - 1]
+                smartBox = cv2.minAreaRect(contour[indexMax])
+
+        # Set distance pairs from the smart box and also assign the previous values of the
+        # x-coordinate and y-coordinate to the current values of the minimum
+        (xMin, yMin), (wMin, hMin), ang = smartBox
+        xPrev = xMin
+        yPrev = yMin
+
+        # Angle algorithm based on the orientation to see how much it takes to have
+        # the 'box' to be flush with the center
+        if ang < -45:
+            ang = 90 + ang
+        if wMin < hMin and ang > 0:
+            ang = (90-ang) * -1
+        if wMin > hMin and ang < 0:
+            ang = 90 + ang
         ang = int(ang)
 
-        box = cv2.boxPoints(blackbox)
+        # Create a 'box' made from contours that would move with the direction and angle
+        # of the line or object it is tracking
+        box = cv2.boxPoints(smartBox)
         box = np.int0(box)
-        cv2.drawContours(image,[box], 0, (0,0,255,3))
-        cv2.putText(image, str(ang), (10,40), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2)
+        cv2.drawContours(image, [box], 0, (0, 0, 255), 3)
 
-    # Calculation of the error
-    # Also can be interpreted as distance of the line to the centre (or the colour it wishes to follow)
-    error = lineCentre - centre
-    message = "Distance from Centre :" + str(error)
+        # Prints the angle that it has with the center
+        cv2.putText(image, str(ang), (10,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2)
 
-    # Error Check code - will use the same information to move the rover
-    cv2.putText(image, message, (10,250), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255,0,0), 2)
+        # Calculation of the error
+        # Also can be interpreted as distance of the line to the centre (or the colour it wishes to follow)
+        error = int(xMin - centre)
+        message = "Distance from Centre :" + str(error)
+
+        # Error Check code - will use the same information to move the rover
+        cv2.putText(image, message, (150, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+
+        # Blue box and blue line signify the largest 'area' of contour detected
+        # Generate the bounding rectangle of the largest contour found previously
+        lineX, lineY, lineW, lineH = cv2.boundingRect(largestContour)
+        lineCentre = (int)(lineX + (lineW / 2))
+
+        # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
+        # represents the largest contour found
+        cv2.line(image, (lineCentre, int(yRes / 2) - 40), (lineCentre, int(yRes / 2) + 40), (255, 0, 0), 3)
+
+        #cv2.rectangle(image, (lineX, lineY), (lineX + lineW, lineY + lineH), (255, 0, 0), 3)
+
+        #cv2.rectangle(bwResult, (xMax, yMax), (int(xMax + wMax), int(yMax + hMax)), (255, 255, 0), 3)
+
+        #cv2.rectangle(image, (xMax, yMax), (int(xMax + wMax), int(yMax + hMax)), (255, 255, 0), 3)
+
+        # Create another 'box' made from contours that would move with the direction and
+        # angle of the line or object it is tracking IF it is the largest one
+        bigBox = cv2.boxPoints(cv2.minAreaRect(largestContour))
+        bigBox = np.int0(bigBox)
+        cv2.drawContours(image,[bigBox], 0, (255,255,0),3)
+
+        # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
+        # represents the most recent contour found
+        cv2.line(image, (int(xMin), 200), (int(xMin), 250), (255,0,255), 3)
 
     # Display of the images
-
     cv2.imshow("Original", np.hstack([image,bwResult]))
     cv2.imshow("Black and White", blackSeen)
-    cv2.imshow("Green", greenSeen)
-    cv2.imshow("Red", redSeen)
+    #cv2.imshow("Green", greenSeen)
+    #cv2.imshow("Red", redSeen)
 
     # Resets the buffer
     rawCapture.truncate(0)
