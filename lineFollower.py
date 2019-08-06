@@ -1,8 +1,21 @@
+# Python program for a line-following rover using a Raspberry Pi and a CARobot Motor Hat
+# Developed by Andrew Hua
+# Credits go to the respective owners of the imported libaries and the OpenCV tutorials
+
+# TO-DO:
+# - Implement colour detection
+# - Fix motion with rover
+# - Implement contingencies for exception handling / errors
+
+# The Pi required SSH, SPI, I2C, and the Camera functionality to be enabled
+
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 import time
 import cv2
 import numpy as np
+
+import roverMovement as rm
 
 # Variables for the resolution of the camera (640 x 480 px to enhance efficacy of OpenCV and FPS)
 # Resolution is set rather low to increase processing speed
@@ -63,9 +76,9 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     cv2.drawContours(bwResult, contour2, -1, 255, 3)
 
     # Creates a rectangle around the contour area with the largest area that is sees and prints it
-    #
     largestContour = max(contour2, key = cv2.contourArea)
     xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
+
     #cv2.rectangle(bwResult, (xMax,yMax), (xMax+wMax,yMax+hMax), (0,255,0),3)
     ####################################################################################################
 
@@ -156,6 +169,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
                 (yMax, indexMax, xMin, yMin) = allCntrs[contourLen - 1]
                 smartBox = cv2.minAreaRect(contour[indexMax])
 
+        # DRAWING AND TEXT FOR RECENT CONTOUR
         # Set distance pairs from the smart box and also assign the previous values of the
         # x-coordinate and y-coordinate to the current values of the minimum
         (xMin, yMin), (wMin, hMin), ang = smartBox
@@ -172,14 +186,14 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
             ang = 90 + ang
         ang = int(ang)
 
+        # Prints the angle that it has with the center
+        cv2.putText(image, str(ang), (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+
         # Create a 'box' made from contours that would move with the direction and angle
         # of the line or object it is tracking
-        box = cv2.boxPoints(smartBox)
-        box = np.int0(box)
-        cv2.drawContours(image, [box], 0, (255, 0, 255), 3)
-
-        # Prints the angle that it has with the center
-        cv2.putText(image, str(ang), (10,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,0,255),2)
+        recentBox = cv2.boxPoints(smartBox)
+        recentBox = np.int0(recentBox)
+        cv2.drawContours(image, [recentBox], 0, (255, 0, 255), 3)
 
         # Calculation of the error
         # Also can be interpreted as distance of the line to the centre (or the colour it wishes to follow)
@@ -188,6 +202,28 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
         # Error Check code - will use the same information to move the rover
         cv2.putText(image, message, (150, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+
+        # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
+        # represents the most recent contour found
+        cv2.line(image, (int(xMin), 200), (int(xMin), 250), (255, 0, 255), 3)
+
+        # DRAWING AND TEXT FOR LARGEST CONTOUR
+        # Set distance pairs from the big box
+        largestBox = cv2.minAreaRect(largestContour)
+        (xBig, yBig), (wBig, hBig), angBig = largestBox
+
+        # Angle algorithm based on the orientation to see how much it takes to have
+        # the 'box' to be flush with the center
+        if angBig < -45:
+            angBig = 90 + angBig
+        if wBig < hBig and angBig > 0:
+            ang = (90-ang) * -1
+        if wBig > hBig and angBig < 0:
+            angBig = 90 + angBig
+        angBig = int(angBig)
+
+        # Prints the angle that is has with the center
+        cv2.putText(image, str(angBig), (10,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),2)
 
         # Blue box and blue line signify the largest 'area' of contour detected
         # Generate the bounding rectangle of the largest contour found previously
@@ -198,34 +234,28 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         # represents the largest contour found
         cv2.line(image, (lineCentre, int(yRes / 2) - 40), (lineCentre, int(yRes / 2) + 40), (255, 255, 0), 3)
 
-        # Create another 'box' made from contours that would move with the direction and
-        # angle of the line or object it is tracking IF it is the largest one
-
-        largestBox = cv2.minAreaRect(largestContour)
-        (xBig, yBig), (wBig, hBig), angBig = largestBox
-
-        if angBig < -45:
-            angBig = 90 + angBig
-        if wBig < hBig and angBig > 0:
-            ang = (90-ang) * -1
-        if wBig > hBig and angBig < 0:
-            angBig = 90 + angBig
-        angBig = int(angBig)
-
-        cv2.putText(image, str(angBig), (10,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),2)
-
-        bigBox = cv2.boxPoints(largestBox)
-        bigBox = np.int0(bigBox)
-        cv2.drawContours(image,[bigBox], 0, (255,255,0),3)
-
+        # Calculation of the error
+        # Also can be interpreted as distance to the center (or the colour it wishes to follow)
         errorMax = int(lineCentre - centre)
         messageMax = "Distance from Centre (Biggest) :" + str(errorMax)
 
+        # Error Check code - will use the same information to move the rover
         cv2.putText(image, messageMax, (150, 475), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,255), 2)
 
-        # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
-        # represents the most recent contour found
-        cv2.line(image, (int(xMin), 200), (int(xMin), 250), (255,0,255), 3)
+        # Create another 'box' made from contours that would move with the direction and angle
+        # of the line or object it is tracking
+        bigBox = cv2.boxPoints(largestBox)
+        bigBox = np.int0(bigBox)
+        cv2.drawContours(image, [bigBox], 0, (255, 255, 0), 3)
+
+        if not errorMax is None:
+            avgError = (errorMax + error)/2
+        else:
+            avgError = error
+        if not angBig is None:
+            avgAng = int((angBig + ang)/2)
+        else:
+            avgAng = ang
 
     # Display of the images
     cv2.imshow("Original", image)
@@ -242,4 +272,5 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     if key == ord('r'):
         break
 
+# Kill the OpenCV windows
 cv2.destroyAllWindows()
