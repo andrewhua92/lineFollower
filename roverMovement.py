@@ -11,12 +11,12 @@ pca = PCA9685(i2c_bus)
 pca.frequency = 60
 
 # Sets values for the PCA9685 channels to send PWM signals from
-motor1A = pca.channels[0]
-motor1B = pca.channels[2]
+motor1A = pca.channels[2]
+motor1B = pca.channels[0]
 enable1 = pca.channels[1]
 
-motor2A = pca.channels[3]
-motor2B = pca.channels[5]
+motor2A = pca.channels[5]
+motor2B = pca.channels[3]
 enable2 = pca.channels[4]
 
 # Movement functions

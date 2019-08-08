@@ -277,50 +277,51 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
         # Based on the distance to the centre AND the angle it has perpindicular to the horizontal, it will move
         # the rover appropriately to correct itself - it wishes to have the line be dead-centre on the screen
+        # motionMessage output purely for testing purposes
         if avgError > 0:
             # Move to the left
             if avgAng > 0:
                 # Hard left
-                rm.move(50, -10)
-                motionMessage = 'hard left'
+                rm.move(150, -100)
+                motionMessage = 'hard left (on the right, angled right)'
             elif avgAng < 0:
                 # Soft right
-                rm.move(25,50)
-                motionMessage = 'soft right'
+                rm.move(75,150)
+                motionMessage = 'soft right (on the right, angled left)'
             else:
                 # Soft left
-                rm.move(50,25)
-                motionMessage = 'soft left'
+                rm.move(150,75)
+                motionMessage = 'soft left (on the right, angled correctly)'
         elif avgError < 0:
             # Move to the right
             if avgAng > 0:
                 # Soft left
-                rm.move(50,25)
-                motionMessage = 'soft left'
+                rm.move(150,75)
+                motionMessage = 'soft left (on the left, angled right)'
             elif avgAng < 0:
                 # Hard right
-                rm.move(-10,50)
-                motionMessage = 'hard right'
+                rm.move(-100,150)
+                motionMessage = 'hard right (on the left, angled left)'
             else:
                 # Soft right
-                rm.move(25,50)
-                motionMessage = 'soft right'
+                rm.move(75,150)
+                motionMessage = 'soft right (on the left, angled correctly)'
         else:
             # Continue going straight
             if avgAng > 0:
                 # Soft left
-                rm.move(50,25)
-                motionMessage = 'soft left'
+                rm.move(150,75)
+                motionMessage = 'soft left (in the middle, angled right)'
             elif avgAng < 0:
                 # Soft right
-                rm.move(25,50)
-                motionMessage = 'soft right'
+                rm.move(75,150)
+                motionMessage = 'soft right (in the middle, angled left)'
             else:
                 # Straight
-                rm.move(50,50)
-                motionMessage = 'straight'
+                rm.move(150,150)
+                motionMessage = 'straight (in the middle, angled correctly)'
 
-        cv2.putText(image, 'Direction: '+ motionMessage, (150, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+        cv2.putText(image, 'Direction: '+ motionMessage, (150, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
                 
     # Display of the images
     cv2.imshow("Original", image)
