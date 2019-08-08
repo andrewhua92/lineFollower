@@ -6,6 +6,7 @@
 # - Implement colour detection
 # - Fix motion with rover
 # - Implement contingencies for exception handling / errors
+# - Handle crash of no contour found situation
 
 # The Pi required SSH, SPI, I2C, and the Camera functionality to be enabled
 
@@ -26,7 +27,7 @@ yRes = 480
 # Lower and upper RGB values in arrays for convenience
 # Brought to actual array forms using Numpy
 lower = [0,0,0]
-upper = [20, 20, 20]
+upper = [5, 5, 5]
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
@@ -76,8 +77,13 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     cv2.drawContours(bwResult, contour2, -1, 255, 3)
 
     # Creates a rectangle around the contour area with the largest area that is sees and prints it
-    largestContour = max(contour2, key = cv2.contourArea)
-    xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
+    # Crashes here when no contour is found - fix
+    try:
+        largestContour = max(contour2, key = cv2.contourArea)
+        xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
+    except ValueError:
+        rawCapture.truncate(0)
+        continue
 
     #cv2.rectangle(bwResult, (xMax,yMax), (xMax+wMax,yMax+hMax), (0,255,0),3)
     ####################################################################################################
@@ -88,8 +94,10 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # a 'red' image of the current image
     #redSeen = cv2.inRange(image, (0,0,50), (50,50,250))
 
-    # creates a 3x3 matrix
+    # creates a 3x3 matrix of 1's to reduce noise
     kernel = np.ones((3,3), np.uint8)
+
+    # We want to 'open' the image' by eroding, then dilating to remove noise
 
     # erodes 'cleans up' any noise and unreliable lines it sees
     # ideal number seems to be 3-7, will test later
@@ -112,13 +120,13 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
     # Create variable for length of the number of contours
     contourLen = len(contour)
-    # if there are any contours detected
+    # If there are any contours detected...
     if contourLen > 0:
 
-        # IF there are contours detected, then if only one is detected, simply use that for the smart box
+        # I there are contours detected, then if only one is detected, simply use that for the smart box
         if contourLen == 1:
             smartBox = cv2.minAreaRect(contour[0])
-        # check all false positives and find the most 'recent' based on change in x and y coordinates
+        # Check all false positives and find the most 'recent' based on change in x and y coordinates
         else:
             # Create empty array to hold all the candidate contours that appear in this frame
             allCntrs = []
@@ -248,15 +256,72 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         bigBox = np.int0(bigBox)
         cv2.drawContours(image, [bigBox], 0, (255, 255, 0), 3)
 
-        if not errorMax is None:
+        # Averaging of the distance to centre and averaging of error
+        # This is assuming that a value has been procured from the 'big' contour as well as
+        # an insignificant deviation between the two values
+        # Priority is taken on the more recent contour as opposed to the big one
+
+        # Positive value of error is distance from the right of the centre
+        # Negative value of error is distance from the left of the centre
+        if not errorMax is None and abs(errorMax - error) < 50:
             avgError = (errorMax + error)/2
         else:
             avgError = error
-        if not angBig is None:
+
+        # Positive value of angle is angle in degrees from the vertical from the centre to the right (quadrant 1)
+        # Negative value of angle is angle in degrees from the vertical from the centre to the left (quadrant 2)
+        if not angBig is None and abs(angBig - ang) < 50:
             avgAng = int((angBig + ang)/2)
         else:
             avgAng = ang
 
+        # Based on the distance to the centre AND the angle it has perpindicular to the horizontal, it will move
+        # the rover appropriately to correct itself - it wishes to have the line be dead-centre on the screen
+        if avgError > 0:
+            # Move to the left
+            if avgAng > 0:
+                # Hard left
+                rm.move(50, -10)
+                motionMessage = 'hard left'
+            elif avgAng < 0:
+                # Soft right
+                rm.move(25,50)
+                motionMessage = 'soft right'
+            else:
+                # Soft left
+                rm.move(50,25)
+                motionMessage = 'soft left'
+        elif avgError < 0:
+            # Move to the right
+            if avgAng > 0:
+                # Soft left
+                rm.move(50,25)
+                motionMessage = 'soft left'
+            elif avgAng < 0:
+                # Hard right
+                rm.move(-10,50)
+                motionMessage = 'hard right'
+            else:
+                # Soft right
+                rm.move(25,50)
+                motionMessage = 'soft right'
+        else:
+            # Continue going straight
+            if avgAng > 0:
+                # Soft left
+                rm.move(50,25)
+                motionMessage = 'soft left'
+            elif avgAng < 0:
+                # Soft right
+                rm.move(25,50)
+                motionMessage = 'soft right'
+            else:
+                # Straight
+                rm.move(50,50)
+                motionMessage = 'straight'
+
+        cv2.putText(image, 'Direction: '+ motionMessage, (150, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+                
     # Display of the images
     cv2.imshow("Original", image)
     #cv2.imshow("Black and White", blackSeen)
