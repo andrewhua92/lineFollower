@@ -11,13 +11,21 @@ pca = PCA9685(i2c_bus)
 pca.frequency = 60
 
 # Sets values for the PCA9685 channels to send PWM signals from
-motor1A = pca.channels[2]
-motor1B = pca.channels[0]
-enable1 = pca.channels[1]
+motorLeft1A = pca.channels[0]
+motorLeft1B = pca.channels[2]
+enableLeft1 = pca.channels[1]
 
-motor2A = pca.channels[5]
-motor2B = pca.channels[3]
-enable2 = pca.channels[4]
+motorLeft2A = pca.channels[5]
+motorLeft2B = pca.channels[3]
+enableLeft2 = pca.channels[4]
+
+motorRight1A = pca.channels[8]
+motorRight1B = pca.channels[6]
+enableRight1 = pca.channels[7]
+
+motorRight2A = pca.channels[9]
+motorRight2B = pca.channels[11]
+enableRight2 = pca.channels[10]
 
 # Movement functions
 # Enable will detect a digital input, hence, why we use 0xffff as the signal to ensure a 'high' value
@@ -31,89 +39,34 @@ def move(leftSpeed, rightSpeed):
     rSpeed = int(rightSpeed*255)
 
     if lSpeed >= 0:
-        motor1A.duty_cycle = lSpeed
-        motor1B.duty_cycle = 0
-        enable1.duty_cycle = 0xffff
+        motorLeft1A.duty_cycle = lSpeed
+        motorLeft1B.duty_cycle = 0
+        enableLeft1.duty_cycle = 0xffff
+        motorLeft2A.duty_cycle = lSpeed
+        motorLeft2B.duty_cycle = 0
+        enableLeft2.duty_cycle = 0xffff
     else:
-        motor1A.duty_cycle = 0
-        motor1B.duty_cycle = lSpeed * -1
-        enable1.duty_cycle = 0xffff
+        motorLeft1A.duty_cycle = 0
+        motorLeft1B.duty_cycle = lSpeed * -1
+        enableLeft1.duty_cycle = 0xffff
+        motorLeft2A.duty_cycle = 0
+        motorLeft2B.duty_cycle = lSpeed * -1
+        enableLeft2.duty_cycle = 0xffff
 
     if rSpeed >= 0:
-        motor2A.duty_cycle = rSpeed
-        motor2B.duty_cycle = 0
-        enable2.duty_cycle = 0xffff
+        motorRight1A.duty_cycle = rSpeed
+        motorRight1B.duty_cycle = 0
+        enableRight1.duty_cycle = 0xffff
+        motorRight2A.duty_cycle = rSpeed
+        motorRight2B.duty_cycle = 0
+        enableRight2.duty_cycle = 0xffff
     else:
-        motor2A.duty_cycle = 0
-        motor2B.duty_cycle = rSpeed * -1
-        enable2.duty_cycle = 0xffff
-
-# Testing movement functions, where signal is at half duty-cycle
-def leftMove(speed):
-    lSpeed = int(speed * 255)
-    if speed > 0:
-        motor1A.duty_cycle = lSpeed
-        motor1B.duty_cycle = 0
-        enable1.duty_cycle = 0xffff
-    elif speed < 0:
-        motor1A.duty_cycle = 0
-        motor1B.duty_cycle = lSpeed * -1
-        enable1.duty_cycle = 0xffff
-    else:
-        motor1A.duty_cycle = 0
-        motor1B.duty_cycle = 0
-        enable1.duty_cycle = 0
-
-def rightMove(speed):
-    rSpeed = int(speed * 255)
-    if speed > 0:
-        motor2A.duty_cycle = rSpeed
-        motor2B.duty_cycle = 0
-        enable2.duty_cycle = 0xffff
-    elif speed < 0:
-        motor2A.duty_cycle = 0
-        motor2B.duty_cycle = rSpeed * -1
-        enable2.duty_cycle = 0xffff
-    else:
-        motor2A.duty_cycle = 0
-        motor2B.duty_cycle = 0
-        enable2.duty_cycle = 0
-
-def forward():
-    motor1A.duty_cycle = 0x7fff
-    motor1B.duty_cycle = 0
-    enable1.duty_cycle = 0xffff
-
-    motor2A.duty_cycle = 0x7fff
-    motor2B.duty_cycle = 0
-    enable2.duty_cycle = 0xffff
-
-def left():
-    motor1A.duty_cycle = 0x7fff
-    motor1B.duty_cycle = 0
-    enable1.duty_cycle = 0xffff
-
-    motor2A.duty_cycle = 0
-    motor2B.duty_cycle = 0x7fff
-    enable2.duty_cycle = 0xffff
-
-def right():
-    motor1A.duty_cycle = 0
-    motor1B.duty_cycle = 0x7fff
-    enable1.duty_cycle = 0xffff
-
-    motor2A.duty_cycle = 0x7fff
-    motor2B.duty_cycle = 0
-    enable2.duty_cycle = 0xffff
-
-def backwards():
-    motor1A.duty_cycle = 0
-    motor1B.duty_cycle = 0x7fff
-    enable1.duty_cycle = 0xffff
-
-    motor2A.duty_cycle = 0
-    motor2B.duty_cycle = 0x7fff
-    enable2.duty_cycle = 0xffff
+        motorRight1A.duty_cycle = 0
+        motorRight1B.duty_cycle = rSpeed * -1
+        enableRight1.duty_cycle = 0xffff
+        motorRight2A.duty_cycle = 0
+        motorRight2B.duty_cycle = rSpeed * -1
+        enableRight2.duty_cycle = 0xffff
 
 # Full stop function, halting all signals and disabling all enables
 def stop():
