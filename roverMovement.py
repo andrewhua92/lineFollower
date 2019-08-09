@@ -70,10 +70,18 @@ def move(leftSpeed, rightSpeed):
 
 # Full stop function, halting all signals and disabling all enables
 def stop():
-    motor1A.duty_cycle = 0
-    motor1B.duty_cycle = 0
-    enable1.duty_cycle = 0
+    motorLeft1A.duty_cycle = 0
+    motorLeft1B.duty_cycle = 0
+    enableLeft1.duty_cycle = 0
 
-    motor2A.duty_cycle = 0
-    motor2B.duty_cycle = 0
-    enable2.duty_cycle = 0
+    motorLeft2A.duty_cycle = 0
+    motorLeft2B.duty_cycle = 0
+    enableLeft2.duty_cycle = 0
+
+    motorRight1A.duty_cycle = 0
+    motorRight1B.duty_cycle = 0
+    enableRight1.duty_cycle = 0
+
+    motorRight2A.duty_cycle = 0
+    motorRight2B.duty_cycle = 0
+    enableRight2.duty_cycle = 0
