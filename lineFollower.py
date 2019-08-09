@@ -7,8 +7,11 @@
 # - Fix motion with rover
 # - Implement contingencies for exception handling / errors
 # - Handle crash of no contour found situation
+# - Seperate images for separate masks?
 
 # The Pi required SSH, SPI, I2C, and the Camera functionality to be enabled
+# Currently using OpenCV version 3.4.4 - a bit outdated and will upgrade as soon as
+# 4.00+ is available on PiWheels
 
 from picamera.array import PiRGBArray
 from picamera import PiCamera
@@ -63,36 +66,34 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # a 'black and white' image of the current image
     blackSeen = cv2.inRange(image,lower, upper)
 
+    # a 'green' image of the current image
+    greenSeen = cv2.inRange(image, (0, 20, 0), (20, 255, 20))
+    # a 'red' image of the current image
+    redSeen = cv2.inRange(image, (0, 0, 20), (20, 20, 255))
+
     # THIS SECTION IS TO DETERMINE LARGEST CONTOUR AREA AS A RESULT OF IMPROPERLY PLACED LINES / SYMBOLS
     ####################################################################################################
     # Creates a bitwise 'and' mask for what is black with the inRange function and in the original image
     bwResult = cv2.bitwise_and(image, image, mask=blackSeen)
 
     # Return the image and also the threshold
-    ret, thresh = cv2.threshold(blackSeen, 40, 255, 0)
+    ret, thresh = cv2.threshold(blackSeen, 127, 255, cv2.THRESH_BINARY)
+
     # Applies contours to the new threshold
-    img2, contour2, hi2 = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    imgBW, contourBW, hiBW = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Draws the contours onto the new 'bitwise-and' capture
-    cv2.drawContours(bwResult, contour2, -1, 255, 3)
+    cv2.drawContours(bwResult, contourBW, -1, 255, 3)
 
     # Creates a rectangle around the contour area with the largest area that is sees and prints it
     # Crashes here when no contour is found - fix
     try:
-        largestContour = max(contour2, key = cv2.contourArea)
+        largestContour = max(contourBW, key = cv2.contourArea)
         xMax, yMax, wMax, hMax = cv2.boundingRect(largestContour)
     except ValueError:
         rawCapture.truncate(0)
         continue
-
-    #cv2.rectangle(bwResult, (xMax,yMax), (xMax+wMax,yMax+hMax), (0,255,0),3)
     ####################################################################################################
-
-    # a 'green' image of the current image
-    #greenSeen = cv2.inRange(image, (0,50,0), (50,250,50))
-
-    # a 'red' image of the current image
-    #redSeen = cv2.inRange(image, (0,0,50), (50,50,250))
 
     # creates a 3x3 matrix of 1's to reduce noise
     kernel = np.ones((3,3), np.uint8)
@@ -102,30 +103,34 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # erodes 'cleans up' any noise and unreliable lines it sees
     # ideal number seems to be 3-7, will test later
     blackSeen= cv2.erode(blackSeen, kernel, iterations=5)
-    #greenSeen = cv2.erode(greenSeen, kernel, iterations=5)
-    #redSeen = cv2.erode(redSeen, kernel, iterations=5)
+    greenSeen = cv2.erode(greenSeen, kernel, iterations=5)
+    redSeen = cv2.erode(redSeen, kernel, iterations=5)
 
     # dilate 'ehances' the presently seen lines it sees
     # ideal number seems be 8-10, will test later
     blackSeen = cv2.dilate(blackSeen, kernel, iterations=9)
-    #greenSeen = cv2.dilate(greenSeen,kernel, iterations=9)
-    #redSeen = cv2.dilate(redSeen, kernel, iterations=9)
+    greenSeen = cv2.dilate(greenSeen,kernel, iterations=9)
+    redSeen = cv2.dilate(redSeen, kernel, iterations=9)
 
     # contour function
-    # currently, this produces contours for anything seen that is very dark
-    img, contour, hierarchy = cv2.findContours(blackSeen.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # produces contour arrays (made up of various point vectors) for corresponding colours
+    _, contourBlack, hiBlack = cv2.findContours(blackSeen, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, contourGreen, hiGreen = cv2.findContours(greenSeen.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, contourRed, hiRed = cv2.findContours(redSeen.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # draws out the contours that it finds
-    cv2.drawContours(image, contour, -1, (0,255,255), 3)
+    imageGreen = cv2.drawContours(image.copy(), contourGreen, -1, (0,255,255),3)
+    imageRed = cv2.drawContours(image.copy(), contourRed, -1, (0,255,255),3)
+    cv2.drawContours(image, contour, -1, (0, 255, 255), 3)
 
     # Create variable for length of the number of contours
-    contourLen = len(contour)
+    contourLen = len(contourBlack)
     # If there are any contours detected...
     if contourLen > 0:
 
         # I there are contours detected, then if only one is detected, simply use that for the smart box
         if contourLen == 1:
-            smartBox = cv2.minAreaRect(contour[0])
+            smartBox = cv2.minAreaRect(contourBlack[0])
         # Check all false positives and find the most 'recent' based on change in x and y coordinates
         else:
             # Create empty array to hold all the candidate contours that appear in this frame
@@ -137,7 +142,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
             for i in range(contourLen):
 
                 # Generate a rectangle of each contour, with the specifics of the lengths and angle
-                smartBox = cv2.minAreaRect(contour[i])
+                smartBox = cv2.minAreaRect(contourBlack[i])
                 (xMin, yMin), (wMin, hMin), ang = smartBox
 
                 # Store the coordinates of the rectangle
@@ -170,12 +175,12 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
                 # Set variables for the indices and distances from the top of the array
                 (totalDistance, indexMax) = cntrsFromBot[0]
                 # The 'smart box' will now be created around the closest to last time's contour
-                smartBox = cv2.minAreaRect(contour[indexMax])
+                smartBox = cv2.minAreaRect(contourBlack[indexMax])
             else:
                 # If there is no off-bottom contours to disregard, simply choose the contour
                 # at the bottom of the list (as we aim for lower yMax)
                 (yMax, indexMax, xMin, yMin) = allCntrs[contourLen - 1]
-                smartBox = cv2.minAreaRect(contour[indexMax])
+                smartBox = cv2.minAreaRect(contourBlack[indexMax])
 
         # DRAWING AND TEXT FOR RECENT CONTOUR
         # Set distance pairs from the smart box and also assign the previous values of the
@@ -324,18 +329,19 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         cv2.putText(image, 'Direction: '+ motionMessage, (150, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
                 
     # Display of the images
-    cv2.imshow("Original", image)
-    #cv2.imshow("Black and White", blackSeen)
-    #cv2.imshow("Green", greenSeen)
-    #cv2.imshow("Red", redSeen)
+    cv2.imshow("Original",image)
+    cv2.imshow("Black and White", blackSeen)
+    cv2.imshow("Green", imageGreen)
+    cv2.imshow("Red", imageRed)
 
     # Resets the buffer
     rawCapture.truncate(0)
 
-    # Kill the process
+    # Kill the process & motor functio
     # Kill key is the letter 'r'
     key = cv2.waitKey(1) & 0xff
     if key == ord('r'):
+        rm.stop()
         break
 
 # Kill the OpenCV windows
