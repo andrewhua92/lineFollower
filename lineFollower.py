@@ -19,7 +19,9 @@ import time
 import cv2
 import numpy as np
 
-import roverMovement as rm
+import stateMachine as SM
+
+sm = SM.stateMachine()
 
 # Variables for the resolution of the camera (640 x 480 px to enhance efficacy of OpenCV and FPS)
 # Resolution is set rather low to increase processing speed
@@ -257,73 +259,32 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         bigBox = np.int0(bigBox)
         cv2.drawContours(image, [bigBox], 0, (255, 255, 0), 2)
 
-        # Averaging of the distance to centre and averaging of error
-        # This is assuming that a value has been procured from the 'big' contour as well as
-        # an insignificant deviation between the two values
-        # Priority is taken on the more recent contour as opposed to the big one
+    # Averaging of the distance to centre and averaging of error
+    # This is assuming that a value has been procured from the 'big' contour as well as
+    # an insignificant deviation between the two values
+    # Priority is taken on the more recent contour as opposed to the big one
 
-        # Positive value of error is distance from the right of the centre
-        # Negative value of error is distance from the left of the centre
-        if not errorMax is None and abs(errorMax - error) < 50:
-            avgError = (errorMax + error)/2
-        else:
-            avgError = error
+    # Positive value of error is distance from the right of the centre
+    # Negative value of error is distance from the left of the centre
+    if not errorMax is None and abs(errorMax - error) < 50:
+        avgError = (errorMax + error)/2
+    else:
+        avgError = error
 
-        # Positive value of angle is angle in degrees from the vertical from the centre to the right (quadrant 1)
-        # Negative value of angle is angle in degrees from the vertical from the centre to the left (quadrant 2)
-        if not angBig is None and abs(angBig - ang) < 50:
-            avgAng = int((angBig + ang)/2)
-        else:
-            avgAng = ang
+    # Positive value of angle is angle in degrees from the vertical from the centre to the right (quadrant 1)
+    # Negative value of angle is angle in degrees from the vertical from the centre to the left (quadrant 2)
+    if not angBig is None and abs(angBig - ang) < 50:
+        avgAng = int((angBig + ang)/2)
+    else:
+        avgAng = ang
 
-        # Based on the distance to the centre AND the angle it has perpindicular to the horizontal, it will move
-        # the rover appropriately to correct itself - it wishes to have the line be dead-centre on the screen
-        # motionMessage output purely for testing purposes
-        if avgError > 0:
-            # Move to the left
-            if avgAng > 0:
-                # Hard left
-                rm.move(150, -100)
-                motionMessage = 'hard left (on the right, angled right)'
-            elif avgAng < 0:
-                # Soft right
-                rm.move(75,150)
-                motionMessage = 'soft right (on the right, angled left)'
-            else:
-                # Soft left
-                rm.move(150,75)
-                motionMessage = 'soft left (on the right, angled correctly)'
-        elif avgError < 0:
-            # Move to the right
-            if avgAng > 0:
-                # Soft left
-                rm.move(150,75)
-                motionMessage = 'soft left (on the left, angled right)'
-            elif avgAng < 0:
-                # Hard right
-                rm.move(-100,150)
-                motionMessage = 'hard right (on the left, angled left)'
-            else:
-                # Soft right
-                rm.move(75,150)
-                motionMessage = 'soft right (on the left, angled correctly)'
-        else:
-            # Continue going straight
-            if avgAng > 0:
-                # Soft left
-                rm.move(150,75)
-                motionMessage = 'soft left (in the middle, angled right)'
-            elif avgAng < 0:
-                # Soft right
-                rm.move(75,150)
-                motionMessage = 'soft right (in the middle, angled left)'
-            else:
-                # Straight
-                rm.move(150,150)
-                motionMessage = 'straight (in the middle, angled correctly)'
+    # Based on the distance to the centre AND the angle it has perpindicular to the horizontal, it will move
+    # the rover appropriately to correct itself - it wishes to have the line be dead-centre on the screen
+    # avgMessage output purely for testing purposes
 
-        cv2.putText(image, 'Direction: '+ motionMessage, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
-                
+    avgMessage = sm.drive(avgAng, avgError)
+    cv2.putText(image, 'Direction: ' + avgMessage, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
+
     # Display of the images
     cv2.imshow("Original",image)
     cv2.imshow("Black and White", blackSeen)
