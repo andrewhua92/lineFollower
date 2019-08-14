@@ -19,6 +19,7 @@ import time
 import cv2
 import numpy as np
 
+import roverMovement as rm
 import stateMachine as SM
 
 sm = SM.stateMachine()
@@ -42,6 +43,11 @@ upperGreen = (40, 255, 40)
 # Values of the previous coordinates of x and y
 xPrev = xRes/2
 yPrev = yRes/2
+
+errorMax = None
+error = None
+ang = None
+angBig = None
 
 # Initialization of the camera object to interact with it
 camera = PiCamera()
@@ -282,19 +288,23 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # the rover appropriately to correct itself - it wishes to have the line be dead-centre on the screen
     # avgMessage output purely for testing purposes
 
-    avgMessage = sm.drive(avgAng, avgError)
-    cv2.putText(image, 'Direction: ' + avgMessage, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
+    try:
+        avgMessage = sm.drive(avgAng, avgError)
+    except:
+        avgMessage = "N/A"
+    finally:
+        cv2.putText(image, 'Direction: ' + avgMessage, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
 
     # Display of the images
     cv2.imshow("Original",image)
-    cv2.imshow("Black and White", blackSeen)
+    #cv2.imshow("Black and White", blackSeen)
     cv2.imshow("Green", imageGreen)
     cv2.imshow("Red", imageRed)
 
     # Resets the buffer
     rawCapture.truncate(0)
 
-    # Kill the process & motor functio
+    # Kill the process & motor function
     # Kill key is the letter 'r'
     key = cv2.waitKey(1) & 0xff
     if key == ord('r'):
