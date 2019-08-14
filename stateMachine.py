@@ -2,10 +2,10 @@ import roverMovement as rm
 
 class stateMachine:
 
-    startState = 'straight'
-    currState = startState
     states = ['straight', 'softRight','hardRight'
               'softLeft', 'hardLeft']
+    startState = states[0]
+    currState = startState
 
     roverCalls = {'straight': rm.move(50,50),
                  'softRight': rm.move(50,75),
@@ -14,24 +14,31 @@ class stateMachine:
                  'hardLeft': rm.move(50,-20)
     }
 
-    transition = {('firstQuad', 'right'): 'hardLeft',
-                  ('firstQuad', 'left'): 'softLeft',
-                  ('firstQuad', 'vertical'):'softLeft',
-                  ('secondQuad', 'right'): 'softRight',
-                  ('secondQuad', 'left'): 'hardRight',
-                  ('secondQuad', 'vertical'): 'softRight',
-                  ('vertical', 'right'): 'softLeft',
-                  ('vertical', 'left'): 'softRight',
-                  ('vertical', 'vertical'): 'straight'
+    transition = {('firstQuad', 'right', 'softLeft'): 'hardLeft',
+                  ('firstQuad', 'left', 'straight'): 'softLeft',
+                  ('firstQuad', 'left', 'hardLeft'): 'softLeft',
+                  ('firstQuad', 'vertical', 'straight'):'softLeft',
+                  ('firstQuad', 'vertical', 'hardLeft'): 'softLeft',
+                  ('secondQuad', 'right', 'straight'): 'softRight',
+                  ('secondQuad', 'right', 'hardRight'): 'softRight',
+                  ('secondQuad', 'left', 'softRight'): 'hardRight',
+                  ('secondQuad', 'vertical', 'straight'): 'softRight',
+                  ('secondQuad', 'vertical', 'hardRight'): 'softRight',
+                  ('vertical', 'right', 'straight'): 'softLeft',
+                  ('vertical', 'right', 'hardLeft'): 'softLeft',
+                  ('vertical', 'left', 'straight'): 'softRight',
+                  ('vertical', 'left', 'hardRight'): 'softRight',
+                  ('vertical', 'vertical', 'softRight'): 'straight',
+                  ('vertical', 'vertical', 'softLeft'): 'straight'
     }
     
     def drive(self, angle, distance):
         ang = self.angleHelper(angle)
         dist = self.distanceHelper(distance)
-        
-        direction = self.transition[(ang,dist)]
-        self.roverCalls = [direction]
-        return ang + " and " + dist + " ; " + direction
+        try:
+            self.currState = self.transition[(ang,dist,self.currState)]
+        finally:
+            return ang + " and " + dist + " ; " + self.currState
 
     def angleHelper(self, angle):
         if angle > 0:
