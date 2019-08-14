@@ -1,6 +1,6 @@
 import roverMovement as rm
 
-# class to handle transition of states
+# class to handle transition of states - can be see as a Mealy SM
 class stateMachine:
 
     # states are as defined as the motion of the rover, based on the angle it

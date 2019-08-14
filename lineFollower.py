@@ -24,13 +24,14 @@ import stateMachine as SM
 
 sm = SM.stateMachine()
 
-# Variables for the resolution of the camera (640 x 480 px to enhance efficacy of OpenCV and FPS)
+# Variables for the resolution of the camera (350 x 300 px to enhance efficacy of OpenCV and FPS)
 # Resolution is set rather low to increase processing speed
 # May become an issue in detection if the complexity of program increases
+# The frame size is actually rounded to 352 x 304
 xRes = 350
 yRes = 300
 
-# Lower and upper BGR values in arrays for convenience
+# Lower and upper BGR values in tuples for convenience
 lowerBlack = (0,0,0)
 upperBlack = (15, 15, 15)
 
@@ -44,6 +45,7 @@ upperGreen = (40, 255, 40)
 xPrev = xRes/2
 yPrev = yRes/2
 
+# Variable initialization for distance and angular error
 errorMax = None
 error = None
 ang = None
@@ -72,7 +74,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # the region of interest
     # Y-coord, X-coord
     # the region is a strip along the middle to save computation time
-    roi = image[int(yRes/2)-40:int(yRes/2)+40, 0:xRes]
+    #roi = image[int(yRes/2)-40:int(yRes/2)+40, 0:xRes]
 
     # a 'black and white' image of the current image
     blackSeen = cv2.inRange(image,lowerBlack, upperBlack)
@@ -115,16 +117,19 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
         if len(contourRed) > 0:
             largestRedContour = max(contourRed, key = cv2.contourArea)
+            imageRed = cv2.drawContours(image.copy(), largestRedContour, -1, (0, 255, 255), 3)
+            cv2.putText(imageRed, "Area :" + str(cv2.contourArea(largestRedContour)), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         if len(contourGreen) > 0:
             largestGrnContour = max(contourGreen, key = cv2.contourArea)
+            imageGreen = cv2.drawContours(image.copy(), largestGrnContour, -1, (0, 255, 255), 3)
+            cv2.putText(imageGreen, "Area :" + str(cv2.contourArea(largestGrnContour)), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
     except ValueError:
         rawCapture.truncate(0)
         continue
 
     # draws out the contours that it finds
-    imageGreen = cv2.drawContours(image.copy(), contourGreen, -1, (0,255,255),3)
-    imageRed = cv2.drawContours(image.copy(), contourRed, -1, (0,255,255),3)
     cv2.drawContours(image, contourBlack, -1, (0, 255, 255), 2)
 
     # Create variable for length of the number of contours
@@ -298,8 +303,10 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # Display of the images
     cv2.imshow("Original",image)
     #cv2.imshow("Black and White", blackSeen)
-    cv2.imshow("Green", imageGreen)
-    cv2.imshow("Red", imageRed)
+    if len(contourGreen) > 0:
+        cv2.imshow("Green", imageGreen)
+    if len(contourRed) > 0:
+        cv2.imshow("Red", imageRed)
 
     # Resets the buffer
     rawCapture.truncate(0)
