@@ -45,11 +45,12 @@ upperGreen = (40, 255, 40)
 xPrev = xRes/2
 yPrev = yRes/2
 
-# Variable initialization for distance and angular error
+# Variable initialization for distance and angular error and message
 errorMax = None
 error = None
 ang = None
 angBig = None
+avgMessage = 'N/A'
 
 # Initialization of the camera object to interact with it
 camera = PiCamera()
@@ -112,6 +113,9 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # This causes some issues, but this situation should typically not ever occur
     # as there should always be some region to check
     try:
+        # only if there have been contours detected, calculate the largest contour found
+        # for the red and green contours, print the area
+        # the area is determined by 
         if len(contourBlack) > 0:
             largestBlkContour = max(contourBlack, key = cv2.contourArea)
 
@@ -295,8 +299,6 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
     try:
         avgMessage = sm.drive(avgAng, avgError)
-    except:
-        avgMessage = "N/A"
     finally:
         cv2.putText(image, 'Direction: ' + avgMessage, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
 

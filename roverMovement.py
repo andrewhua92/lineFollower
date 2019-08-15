@@ -11,6 +11,7 @@ pca = PCA9685(i2c_bus)
 pca.frequency = 60
 
 # Sets values for the PCA9685 channels to send PWM signals from
+# Can probably put these in an array for easier access
 motorLeft1A = pca.channels[0]
 motorLeft1B = pca.channels[2]
 enableLeft1 = pca.channels[1]
@@ -37,6 +38,9 @@ def move(leftSpeed, rightSpeed):
     # Map up the speeds to take values from 0 to 255 to ~0-0xffff
     lSpeed = int(leftSpeed*255)
     rSpeed = int(rightSpeed*255)
+
+    # soft reset
+    time.sleep(0.1)
 
     if lSpeed >= 0:
         motorLeft1A.duty_cycle = lSpeed
