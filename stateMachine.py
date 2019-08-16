@@ -5,7 +5,7 @@ class stateMachine:
 
     # states are as defined as the motion of the rover, based on the angle it
     # presents to the vertical in the centre, and the distance (horizontally)
-    # to the centre
+    # to the centre - this array doesn't really get used much at the moment
     # start state is the straight motion
     states = ['straight', 'softRight','hardRight'
               'softLeft', 'hardLeft']
@@ -14,30 +14,36 @@ class stateMachine:
 
     # dictionary for the states and their associated motions
     # speeds are to be tested
-    roverMotion =  {'straight': (rm.move, (30,30)),
-                    'softRight': (rm.move, (20,30)),
-                    'hardRight': (rm.move,(-30,30)),
-                    'softLeft': (rm.move, (30,20)),
-                    'hardLeft': (rm.move, (30,-30))
+    roverMotion =  {'straight': (rm.move, (50,50)),
+                    'softRight': (rm.move, (50,30)),
+                    'hardRight': (rm.move, (30,-30)),
+                    'softLeft': (rm.move, (30,50)),
+                    'hardLeft': (rm.move, (-30, 30))
     }
 
-    # extremely bruteforce transition for the current angle, distance and state
+    # Extremely bruteforce transition for the current angle, distance and state
     # so it should be only able to turn and change states with non-drastic
-    # change in state of motion - self-looping states are NOT considered
+    # change in state of motion - self-looping states are NOT considered,
     # instead those are handled in a try-catch block
+
+    # Distance takes precedence over angle
     # currently thinking of a better way to do this
     # FORMAT:
     # ('angle', 'orientation', 'previousState') : 'nextState'
-    transition = {('firstQuad', 'right', 'softLeft'): 'hardLeft',
+    transition = {('firstQuad', 'right', 'softRight'): 'hardRight',
+                  ('firstQuad', 'right', 'straight'): 'softRight',
                   ('firstQuad', 'left', 'straight'): 'softLeft',
                   ('firstQuad', 'left', 'hardLeft'): 'softLeft',
-                  ('firstQuad', 'vertical', 'straight'):'softLeft',
-                  ('firstQuad', 'vertical', 'hardLeft'): 'softLeft',
+                  ('firstQuad', 'vertical', 'straight'):'softRight',
+                  ('firstQuad', 'vertical', 'hardRight'): 'softRight',
+                  
                   ('secondQuad', 'right', 'straight'): 'softRight',
                   ('secondQuad', 'right', 'hardRight'): 'softRight',
                   ('secondQuad', 'left', 'softRight'): 'hardRight',
+                  ('secondQuad', 'left', ''): '',
                   ('secondQuad', 'vertical', 'straight'): 'softRight',
                   ('secondQuad', 'vertical', 'hardRight'): 'softRight',
+                  
                   ('vertical', 'right', 'straight'): 'softLeft',
                   ('vertical', 'right', 'hardLeft'): 'softLeft',
                   ('vertical', 'left', 'straight'): 'softRight',

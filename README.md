@@ -13,5 +13,12 @@ it will use a recency bias search, where it will use previous x and y-coordinate
 determine which contour zone is the closest and establish that as the main contour to follow. Using the combination of these
 methods will eliminate false-positive contours.
 
-Credits to the OpenCV developers and 'Out of the BOTS' on YouTube for the tutorials and the code to start off basic functionality.
+Motion is currently handled by two motors, using differential motion to turn. When using four motors, the ability for
+the rover itself to turn is significantly reduced, hence, the decision to use two - this is not final however.
 
+A state machine is being used in order for to move based on the current state of the line it sees from the camera, with
+states of moving straight, turning left and right softly or sharply.
+
+# Credits
+Credits to the OpenCV developers and 'Out of the BOTS' on YouTube for the tutorials and the code to start off basic functionality.
+Developed by Andrew Hua

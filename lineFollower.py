@@ -3,11 +3,9 @@
 # Credits go to the respective owners of the imported libaries and the OpenCV tutorials
 
 # TO-DO:
-# - Implement colour detection
 # - Fix motion with rover
+# - Fix state machine
 # - Implement contingencies for exception handling / errors
-# - Handle crash of no contour found situation
-# - Seperate images for separate masks?
 
 # The Pi required SSH, SPI, I2C, and the Camera functionality to be enabled
 # Currently using OpenCV version 3.4.4 - a bit outdated and will upgrade as soon as
@@ -51,6 +49,8 @@ error = None
 ang = None
 angBig = None
 avgMessage = 'N/A'
+largestRedArea = 0
+largestGrnArea = 0
 
 # Initialization of the camera object to interact with it
 camera = PiCamera()
@@ -93,15 +93,15 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
     # erodes 'cleans up' any noise and unreliable lines it sees
     # ideal number seems to be 3-7, will test later
-    blackSeen= cv2.erode(blackSeen, kernel, iterations=3)
-    greenSeen = cv2.erode(greenSeen, kernel, iterations=3)
-    redSeen = cv2.erode(redSeen, kernel, iterations=3)
+    blackSeen= cv2.erode(blackSeen, kernel, iterations=5)
+    greenSeen = cv2.erode(greenSeen, kernel, iterations=5)
+    redSeen = cv2.erode(redSeen, kernel, iterations=5)
 
     # dilate 'ehances' the presently seen lines it sees
     # ideal number seems be 8-10, will test later
-    blackSeen = cv2.dilate(blackSeen, kernel, iterations=5)
-    greenSeen = cv2.dilate(greenSeen,kernel, iterations=5)
-    redSeen = cv2.dilate(redSeen, kernel, iterations=5)
+    blackSeen = cv2.dilate(blackSeen, kernel, iterations=9)
+    greenSeen = cv2.dilate(greenSeen,kernel, iterations=9)
+    redSeen = cv2.dilate(redSeen, kernel, iterations=9)
 
     # contour function
     # produces contour arrays (made up of various point vectors) for corresponding colours
@@ -115,19 +115,21 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     try:
         # only if there have been contours detected, calculate the largest contour found
         # for the red and green contours, print the area
-        # the area is determined by 
+        # the area is determined by
         if len(contourBlack) > 0:
             largestBlkContour = max(contourBlack, key = cv2.contourArea)
 
         if len(contourRed) > 0:
             largestRedContour = max(contourRed, key = cv2.contourArea)
             imageRed = cv2.drawContours(image.copy(), largestRedContour, -1, (0, 255, 255), 3)
-            cv2.putText(imageRed, "Area :" + str(cv2.contourArea(largestRedContour)), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            largestRedArea = cv2.contourArea(largestRedContour)
+            cv2.putText(imageRed, "Area :" + str(largestRedArea), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         if len(contourGreen) > 0:
             largestGrnContour = max(contourGreen, key = cv2.contourArea)
             imageGreen = cv2.drawContours(image.copy(), largestGrnContour, -1, (0, 255, 255), 3)
-            cv2.putText(imageGreen, "Area :" + str(cv2.contourArea(largestGrnContour)), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            largestGrnArea = cv2.contourArea(largestGrnContour)
+            cv2.putText(imageGreen, "Area :" + str(largestGrnArea), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
     except ValueError:
         rawCapture.truncate(0)
@@ -296,7 +298,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     # Based on the distance to the centre AND the angle it has perpindicular to the horizontal, it will move
     # the rover appropriately to correct itself - it wishes to have the line be dead-centre on the screen
     # avgMessage output purely for testing purposes
-
+    # sm.drive function itself is required for changing motion
     try:
         avgMessage = sm.drive(avgAng, avgError)
     finally:
@@ -304,7 +306,8 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
     # Display of the images
     cv2.imshow("Original",image)
-    #cv2.imshow("Black and White", blackSeen)
+
+    # Only display a stream if any red or green is seen
     if len(contourGreen) > 0:
         cv2.imshow("Green", imageGreen)
     if len(contourRed) > 0:
