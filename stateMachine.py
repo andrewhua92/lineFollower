@@ -11,6 +11,7 @@ class stateMachine:
               'softLeft', 'hardLeft']
     startState = states[0]
     currState = startState
+    nextState = startState
 
     # dictionary for the states and their associated motions
     # speeds are to be tested
@@ -28,29 +29,41 @@ class stateMachine:
 
     # Distance takes precedence over angle
     # currently thinking of a better way to do this
+
     # FORMAT:
-    # ('angle', 'orientation', 'previousState') : 'nextState'
-    transition = {('firstQuad', 'right', 'softRight'): 'hardRight',
-                  ('firstQuad', 'right', 'straight'): 'softRight',
-                  ('firstQuad', 'left', 'straight'): 'softLeft',
-                  ('firstQuad', 'left', 'hardLeft'): 'softLeft',
-                  ('firstQuad', 'vertical', 'straight'):'softRight',
-                  ('firstQuad', 'vertical', 'hardRight'): 'softRight',
-                  
-                  ('secondQuad', 'right', 'straight'): 'softRight',
-                  ('secondQuad', 'right', 'hardRight'): 'softRight',
-                  ('secondQuad', 'left', 'softRight'): 'hardRight',
-                  ('secondQuad', 'left', ''): '',
-                  ('secondQuad', 'vertical', 'straight'): 'softRight',
-                  ('secondQuad', 'vertical', 'hardRight'): 'softRight',
-                  
-                  ('vertical', 'right', 'straight'): 'softLeft',
-                  ('vertical', 'right', 'hardLeft'): 'softLeft',
-                  ('vertical', 'left', 'straight'): 'softRight',
-                  ('vertical', 'left', 'hardRight'): 'softRight',
-                  ('vertical', 'vertical', 'softRight'): 'straight',
-                  ('vertical', 'vertical', 'softLeft'): 'straight'
-    }
+    # ('orientation', 'angle') : 'nextState'
+    transition1 = {('middle', 'vertical') : 'straight',
+                   ('middle', 'firstQuad') : 'softRight',
+                   ('middle', 'secondQuad'): 'softLeft',
+
+                   ('left', 'vertical'): 'softRight',
+                   ('left', 'firstQuad'): 'softRight',
+                   ('left', 'secondQuad'): 'hardRight',
+
+                   ('right', 'vertical'): 'softLeft',
+                   ('right', 'firstQuad'): 'hardLeft',
+                   ('right', 'secondQuad'): 'softLeft'}
+
+    # this is done simply to avoid sporadic movement between states
+    # FORMAT:
+    # ('current state', 'next state') : 'next actual state'
+    transition2 = {('straight', 'straight'): 'straight',
+                   ('straight', 'softLeft'): 'softLeft',
+                   ('straight', 'softRight'): 'softRight',
+
+                   ('softLeft', 'softLeft'): 'softLeft',
+                   ('softLeft', 'straight'): 'straight',
+                   ('softLeft', 'hardLeft'): 'hardLeft',
+
+                   ('hardLeft', 'hardLeft'): 'hardLeft',
+                   ('hardLeft', 'softLeft'): 'softLeft',
+
+                   ('softRight', 'softRight'): 'softRight',
+                   ('softRight', 'straight'): 'straight',
+                   ('softRight', 'hardRight'): 'hardRight',
+
+                   ('hardRight', 'hardRight'): 'hardRight',
+                   ('hardRight', 'softRight'): 'softRight'}
 
     # main function used to take in current angle and distance to centre
     # returns the direction and situation for debugging while code runs
@@ -62,7 +75,8 @@ class stateMachine:
 
         # try-catch block to try and move states (essentially motions from hard left to hard right)
         try:
-            self.currState = self.transition[(ang,dist,self.currState)]
+            self.nextState = self.transition1[(dist,ang)]
+            self.currState = self.transition2[(self.currState,self.nextState)]
         except:
             # debugging code
             print("old state :", self.currState, " - rover motion : ", self.roverMotion[self.currState][1])
@@ -98,4 +112,4 @@ class stateMachine:
         elif distance < -10:
             return 'left'
         else:
-            return 'vertical'
+            return 'middle'
