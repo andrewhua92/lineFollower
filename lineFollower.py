@@ -14,7 +14,7 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 import time
-import cv2
+import cv2 as cv
 import numpy as np
 
 import roverMovement as rm
@@ -22,12 +22,12 @@ import stateMachine as SM
 
 sm = SM.stateMachine()
 
-# Variables for the resolution of the camera (350 x 300 px to enhance efficacy of OpenCV and FPS)
+# Variables for the resolution of the camera (200 x 200 px to enhance efficacy of OpenCV and FPS)
 # Resolution is set rather low to increase processing speed
 # May become an issue in detection if the complexity of program increases
-# The frame size is actually rounded to 352 x 304
-xRes = 350
-yRes = 300
+# The frame size is actually rounded to 208 x 208
+xRes = 200
+yRes = 200
 
 # Lower and upper BGR values in tuples for convenience
 lowerBlack = (0,0,0)
@@ -78,13 +78,13 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     #roi = image[int(yRes/2)-40:int(yRes/2)+40, 0:xRes]
 
     # a 'black and white' image of the current image
-    blackSeen = cv2.inRange(image,lowerBlack, upperBlack)
+    blackSeen = cv.inRange(image,lowerBlack, upperBlack)
 
     # a 'green' image of the current image
-    greenSeen = cv2.inRange(image, lowerGreen, upperGreen)
+    greenSeen = cv.inRange(image, lowerGreen, upperGreen)
 
     # a 'red' image of the current image
-    redSeen = cv2.inRange(image, lowerRed, upperRed)
+    redSeen = cv.inRange(image, lowerRed, upperRed)
 
     # creates a 3x3 matrix of 1's to reduce noise
     kernel = np.ones((3,3), np.uint8)
@@ -93,21 +93,21 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
     # erodes 'cleans up' any noise and unreliable lines it sees
     # ideal number seems to be 3-7, will test later
-    blackSeen= cv2.erode(blackSeen, kernel, iterations=5)
-    greenSeen = cv2.erode(greenSeen, kernel, iterations=5)
-    redSeen = cv2.erode(redSeen, kernel, iterations=5)
+    blackSeen= cv.erode(blackSeen, kernel, iterations=5)
+    greenSeen = cv.erode(greenSeen, kernel, iterations=5)
+    redSeen = cv.erode(redSeen, kernel, iterations=5)
 
     # dilate 'ehances' the presently seen lines it sees
     # ideal number seems be 8-10, will test later
-    blackSeen = cv2.dilate(blackSeen, kernel, iterations=9)
-    greenSeen = cv2.dilate(greenSeen,kernel, iterations=9)
-    redSeen = cv2.dilate(redSeen, kernel, iterations=9)
+    blackSeen = cv.dilate(blackSeen, kernel, iterations=9)
+    greenSeen = cv.dilate(greenSeen,kernel, iterations=9)
+    redSeen = cv.dilate(redSeen, kernel, iterations=9)
 
     # contour function
     # produces contour arrays (made up of various point vectors) for corresponding colours
-    _, contourBlack, hiBlack = cv2.findContours(blackSeen, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    _, contourGreen, hiGreen = cv2.findContours(greenSeen, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    _, contourRed, hiRed = cv2.findContours(redSeen, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, contourBlack, hiBlack = cv.findContours(blackSeen, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    _, contourGreen, hiGreen = cv.findContours(greenSeen, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    _, contourRed, hiRed = cv.findContours(redSeen, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     # Determines largest contour around dark regions, otherwise, tries again
     # This causes some issues, but this situation should typically not ever occur
@@ -115,28 +115,28 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     try:
         # only if there have been contours detected, calculate the largest contour found
         # for the red and green contours, print the area
-        # the area is determined by
+        # the area is determined by pixels
         if len(contourBlack) > 0:
-            largestBlkContour = max(contourBlack, key = cv2.contourArea)
+            largestBlkContour = max(contourBlack, key = cv.contourArea)
 
         if len(contourRed) > 0:
-            largestRedContour = max(contourRed, key = cv2.contourArea)
-            imageRed = cv2.drawContours(image.copy(), largestRedContour, -1, (0, 255, 255), 3)
-            largestRedArea = cv2.contourArea(largestRedContour)
-            cv2.putText(imageRed, "Area :" + str(largestRedArea), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            largestRedContour = max(contourRed, key = cv.contourArea)
+            imageRed = cv.drawContours(image.copy(), largestRedContour, -1, (0, 255, 255), 3)
+            largestRedArea = cv.contourArea(largestRedContour)
+            cv.putText(imageRed, "Area :" + str(largestRedArea), (10, yRes-10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         if len(contourGreen) > 0:
-            largestGrnContour = max(contourGreen, key = cv2.contourArea)
-            imageGreen = cv2.drawContours(image.copy(), largestGrnContour, -1, (0, 255, 255), 3)
-            largestGrnArea = cv2.contourArea(largestGrnContour)
-            cv2.putText(imageGreen, "Area :" + str(largestGrnArea), (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            largestGrnContour = max(contourGreen, key = cv.contourArea)
+            imageGreen = cv.drawContours(image.copy(), largestGrnContour, -1, (0, 255, 255), 3)
+            largestGrnArea = cv.contourArea(largestGrnContour)
+            cv.putText(imageGreen, "Area :" + str(largestGrnArea), (10, yRes-10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
     except ValueError:
         rawCapture.truncate(0)
         continue
 
     # draws out the contours that it finds
-    cv2.drawContours(image, contourBlack, -1, (0, 255, 255), 2)
+    cv.drawContours(image, contourBlack, -1, (0, 255, 255), 2)
 
     # Create variable for length of the number of contours
     contourLen = len(contourBlack)
@@ -145,7 +145,7 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
 
         # I there are contours detected, then if only one is detected, simply use that for the smart box
         if contourLen == 1:
-            smartBox = cv2.minAreaRect(contourBlack[0])
+            smartBox = cv.minAreaRect(contourBlack[0])
         # Check all false positives and find the most 'recent' based on change in x and y coordinates
         else:
             # Create empty array to hold all the candidate contours that appear in this frame
@@ -157,11 +157,11 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
             for i in range(contourLen):
 
                 # Generate a rectangle of each contour, with the specifics of the lengths and angle
-                smartBox = cv2.minAreaRect(contourBlack[i])
+                smartBox = cv.minAreaRect(contourBlack[i])
                 (xMin, yMin), (wMin, hMin), ang = smartBox
 
                 # Store the coordinates of the rectangle
-                box = cv2.boxPoints(smartBox)
+                box = cv.boxPoints(smartBox)
                 (xBox, yBox) = box[0]
                 # If the y-coordinate of the lowest point is below the maximum screen size (480 pixels with room for
                 # 2 pixels error), are NOT valid, which then it bumps the counter
@@ -190,12 +190,12 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
                 # Set variables for the indices and distances from the top of the array
                 (totalDistance, indexMax) = cntrsFromBot[0]
                 # The 'smart box' will now be created around the closest to last time's contour
-                smartBox = cv2.minAreaRect(contourBlack[indexMax])
+                smartBox = cv.minAreaRect(contourBlack[indexMax])
             else:
                 # If there is no off-bottom contours to disregard, simply choose the contour
                 # at the bottom of the list (as we aim for lower yMax)
                 (yMax, indexMax, xMin, yMin) = allCntrs[contourLen - 1]
-                smartBox = cv2.minAreaRect(contourBlack[indexMax])
+                smartBox = cv.minAreaRect(contourBlack[indexMax])
 
         # DRAWING AND TEXT FOR RECENT CONTOUR
         # Set distance pairs from the smart box and also assign the previous values of the
@@ -215,29 +215,29 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         ang = int(ang)
 
         # Prints the angle that it has with the center
-        cv2.putText(image, str(ang), (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+        cv.putText(image, str(ang), (10, 150), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
 
         # Create a 'box' made from contours that would move with the direction and angle
         # of the line or object it is tracking
-        recentBox = cv2.boxPoints(smartBox)
+        recentBox = cv.boxPoints(smartBox)
         recentBox = np.int0(recentBox)
-        cv2.drawContours(image, [recentBox], 0, (255, 0, 255), 2)
+        cv.drawContours(image, [recentBox], 0, (255, 0, 255), 2)
 
         # Calculation of the error
         # Also can be interpreted as distance of the line to the centre (or the colour it wishes to follow)
         error = int(xMin - centre)
-        message = "Distance from Centre (Recent) :" + str(error)
+        message = "Distance (Recent) :" + str(error)
 
         # Error Check code - will use the same information to move the rover
-        cv2.putText(image, message, (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+        cv.putText(image, message, (10, yRes-10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
 
         # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
         # represents the most recent contour found
-        cv2.line(image, (int(xMin), 200), (int(xMin), 250), (255, 0, 255), 3)
+        cv.line(image, (int(xMin), 200), (int(xMin), 250), (255, 0, 255), 3)
 
         # DRAWING AND TEXT FOR LARGEST CONTOUR
         # Set distance pairs from the big box
-        largestBox = cv2.minAreaRect(largestBlkContour)
+        largestBox = cv.minAreaRect(largestBlkContour)
         (xBig, yBig), (wBig, hBig), angBig = largestBox
 
         # Angle algorithm based on the orientation to see how much it takes to have
@@ -251,30 +251,30 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
         angBig = int(angBig)
 
         # Prints the angle that is has with the center
-        cv2.putText(image, str(angBig), (10,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),2)
+        cv.putText(image, str(angBig), (10,130), cv.FONT_HERSHEY_SIMPLEX, 0.5,(255,255,0),2)
 
         # Blue box and blue line signify the largest 'area' of contour detected
         # Generate the bounding rectangle of the largest contour found previously
-        lineX, lineY, lineW, lineH = cv2.boundingRect(largestBlkContour)
+        lineX, lineY, lineW, lineH = cv.boundingRect(largestBlkContour)
         lineCentre = (int)(lineX + (lineW / 2))
 
         # Generate a line on the horizontal strip in the region of interest, as well as the rectangle that
         # represents the largest contour found
-        cv2.line(image, (lineCentre, int(yRes / 2) - 40), (lineCentre, int(yRes / 2) + 40), (255, 255, 0), 3)
+        cv.line(image, (lineCentre, int(yRes / 2) - 40), (lineCentre, int(yRes / 2) + 40), (255, 255, 0), 3)
 
         # Calculation of the error
         # Also can be interpreted as distance to the center (or the colour it wishes to follow)
         errorMax = int(lineCentre - centre)
-        messageMax = "Distance from Centre (Biggest) :" + str(errorMax)
+        messageMax = "Distance (Biggest) :" + str(errorMax)
 
         # Error Check code - will use the same information to move the rover
-        cv2.putText(image, messageMax, (10, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255, 0), 1)
+        cv.putText(image, messageMax, (10, yRes-30), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255,255, 0), 1)
 
         # Create another 'box' made from contours that would move with the direction and angle
         # of the line or object it is tracking
-        bigBox = cv2.boxPoints(largestBox)
+        bigBox = cv.boxPoints(largestBox)
         bigBox = np.int0(bigBox)
-        cv2.drawContours(image, [bigBox], 0, (255, 255, 0), 2)
+        cv.drawContours(image, [bigBox], 0, (255, 255, 0), 2)
 
     # Averaging of the distance to centre and averaging of error
     # This is assuming that a value has been procured from the 'big' contour as well as
@@ -302,26 +302,26 @@ for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=
     try:
         avgMessage = sm.drive(avgAng, avgError)
     finally:
-        cv2.putText(image, 'Direction: ' + avgMessage, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,255), 1)
+        cv.putText(image, 'Status: ' + avgMessage, (10, 10), cv.FONT_HERSHEY_SIMPLEX, 0.3, (0,0,255), 1)
 
     # Display of the images
-    cv2.imshow("Original",image)
+    cv.imshow("Original",image)
 
     # Only display a stream if any red or green is seen
     if len(contourGreen) > 0:
-        cv2.imshow("Green", imageGreen)
+        cv.imshow("Green", imageGreen)
     if len(contourRed) > 0:
-        cv2.imshow("Red", imageRed)
+        cv.imshow("Red", imageRed)
 
     # Resets the buffer
     rawCapture.truncate(0)
 
     # Kill the process & motor function
     # Kill key is the letter 'r'
-    key = cv2.waitKey(1) & 0xff
+    key = cv.waitKey(1) & 0Xff
     if key == ord('r'):
         rm.stop()
         break
 
 # Kill the OpenCV windows
-cv2.destroyAllWindows()
+cv.destroyAllWindows()
